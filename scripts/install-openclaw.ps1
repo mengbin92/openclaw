@@ -1,4 +1,4 @@
-﻿# OpenClaw 一键部署脚本 (PowerShell)
+# OpenClaw 一键部署脚本 (PowerShell)
 # 支持: Windows 10/11
 # 使用方法: 以管理员身份运行 PowerShell, 然后执行: .\install-openclaw.ps1
 
@@ -6,6 +6,27 @@ param(
     [string]$ApiKey = "",
     [int]$ModelChoice = 2
 )
+
+# 检查执行策略
+$executionPolicy = Get-ExecutionPolicy
+if ($executionPolicy -eq "Restricted" -or $executionPolicy -eq "AllSigned") {
+    Write-Host "============================================" -ForegroundColor Red
+    Write-Host "           执行策略受限" -ForegroundColor Red
+    Write-Host "============================================" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "当前 PowerShell 执行策略为: $executionPolicy" -ForegroundColor Yellow
+    Write-Host "这会导致无法运行脚本。" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "请使用以下命令运行脚本:" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "    powershell -ExecutionPolicy Bypass -File .\install-openclaw.ps1" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "如果需要传递 API Key:" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "    powershell -ExecutionPolicy Bypass -File .\install-openclaw.ps1 -ApiKey \"你的API密钥\"" -ForegroundColor Cyan
+    Write-Host ""
+    exit 1
+}
 
 # 颜色函数
 function Write-ColorOutput {
