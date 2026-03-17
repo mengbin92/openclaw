@@ -92,6 +92,69 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+# 安装 Git
+install_git() {
+    local os="$1"
+
+    # Linux 系统需要 sudo 权限来安装依赖
+    if [[ "$OSTYPE" == "linux-gnu"* ]]; then
+        require_sudo
+    fi
+
+    print_info "检查 Git 安装状态..."
+
+    if command_exists git; then
+        local git_version
+        git_version=$(git --version)
+        print_success "Git 已安装: ${git_version}"
+        return 0
+    fi
+
+    print_info "正在安装 Git..."
+
+    case "$os" in
+        macos)
+            if command_exists brew; then
+                brew install git
+            else
+                print_error "请安装 Homebrew: https://brew.sh"
+                print_info "或者手动安装 Git: https://git-scm.com"
+                exit 1
+            fi
+            ;;
+        debian)
+            sudo apt-get update
+            sudo apt-get install -y git
+            ;;
+        rhel)
+            sudo yum install -y git
+            ;;
+        arch)
+            sudo pacman -S --noconfirm git
+            ;;
+        windows)
+            print_warning "Windows 环境检测到"
+            print_info "请确保已安装 Git: https://git-scm.com"
+            print_info "或使用 WSL 运行此脚本"
+            exit 1
+            ;;
+        *)
+            print_error "不支持的操作系统"
+            exit 1
+            ;;
+    esac
+
+    # 验证安装
+    if command_exists git; then
+        local git_version
+        git_version=$(git --version)
+        print_success "Git 安装成功: ${git_version}"
+    else
+        print_error "Git 安装失败"
+        exit 1
+    fi
+}
+
 # 安装 Node.js
 install_nodejs() {
     local os="$1"
@@ -115,7 +178,7 @@ install_nodejs() {
     case "$os" in
         macos)
             if command_exists brew; then
-                brew install node jq cmake git
+                brew install node jq cmake
             else
                 print_error "请安装 Homebrew: https://brew.sh"
                 print_info "或者手动安装 Node.js: https://nodejs.org"
@@ -123,10 +186,10 @@ install_nodejs() {
             fi
             ;;
         debian)
-            # 安装编译依赖 (cmake, gcc, g++, make, git 等)
+            # 安装编译依赖 (cmake, gcc, g++, make 等)
             print_info "正在安装编译依赖..."
             sudo apt-get update
-            sudo apt-get install -y build-essential cmake gcc g++ make git jq curl python3 iproute2
+            sudo apt-get install -y build-essential cmake gcc g++ make jq curl python3 iproute2
 
             # 安装 Node.js
             if ! install_nvm "debian"; then
@@ -140,7 +203,7 @@ install_nodejs() {
             # 安装编译依赖
             print_info "正在安装编译依赖..."
             sudo yum groupinstall -y "Development Tools"
-            sudo yum install -y cmake gcc gcc-c++ make git jq curl python3 iproute
+            sudo yum install -y cmake gcc gcc-c++ make jq curl python3 iproute
 
             # 安装 Node.js
             if ! install_nvm "rhel"; then
@@ -151,7 +214,7 @@ install_nodejs() {
             fi
             ;;
         arch)
-            sudo pacman -S --noconfirm nodejs npm jq cmake gcc make git python
+            sudo pacman -S --noconfirm nodejs npm jq cmake gcc make python
             ;;
         windows)
             print_warning "Windows 环境检测到"
@@ -676,8 +739,12 @@ main() {
     echo "============================================"
     echo ""
 
-    # 步骤1: 安装 Node.js
-    echo ">>> 步骤 1/4: 安装 Node.js"
+    # 步骤1: 安装 Git
+    echo ">>> 步骤 1/5: 安装 Git"
+    install_git "$os"
+
+    # 步骤2: 安装 Node.js
+    echo ">>> 步骤 2/5: 安装 Node.js"
     install_nodejs "$os"
 
     # 加载 nvm 后再次检查
@@ -688,7 +755,7 @@ main() {
     fi
 
     echo ""
-    echo ">>> 步骤 2/4: 安装 OpenClaw"
+    echo ">>> 步骤 3/5: 安装 OpenClaw"
 
     # 设置 swap (解决内存不足问题)
     # setup_swap "$os"
@@ -696,7 +763,7 @@ main() {
     install_openclaw
 
     echo ""
-    echo ">>> 步骤 3/4: 创建配置文件"
+    echo ">>> 步骤 4/5: 创建配置文件"
     # 先运行 openclaw setup 生成默认配置
     print_info "正在运行 openclaw setup..."
     openclaw setup
@@ -705,7 +772,7 @@ main() {
     create_config "$api_key" "$model_choice" "$custom_base_url"
 
     echo ""
-    echo ">>> 步骤 4/4: 启动服务"
+    echo ">>> 步骤 5/5: 启动服务"
     echo ""
     print_success "部署完成!"
     echo ""
