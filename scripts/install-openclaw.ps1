@@ -4,7 +4,8 @@
 
 param(
     [string]$ApiKey = "",
-    [int]$ModelChoice = 2
+    [int]$ModelChoice = 2,
+    [string]$BaseUrl = ""
 )
 
 # 检查执行策略
@@ -123,18 +124,24 @@ function Main {
         Write-ColorOutput "[SUCCESS] Git 已安装: $gitVersion" "Green"
     }
 
-    # 交互模式 - 获取 API Key
+    # 交互模式 - 获取 API Key (隐藏输入)
     if ([string]::IsNullOrEmpty($ApiKey)) {
         Write-Host ""
         Write-ColorOutput "[INFO] 请输入您的 GPUNexus API Key" "Blue"
         Write-ColorOutput "[INFO] 获取方式: 访问 https://gpunexus.com 注册并创建 API Key" "Blue"
-        $ApiKey = Read-Host "API Key"
+        $securePassword = Read-Host "API Key" -AsSecureString
+        $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
+        $ApiKey = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
+        [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
     }
 
     if ([string]::IsNullOrEmpty($ApiKey)) {
         Write-ColorOutput "[ERROR] API Key 不能为空" "Red"
         exit 1
     }
+
+    # 默认 Base URL
+    $defaultBaseUrl = ""
 
     # 交互模式 - 选择模型
     if ($ModelChoice -eq 0) {
@@ -152,14 +159,14 @@ function Main {
     switch ($ModelChoice) {
         1 {
             $providerName = "GPUNexus"
-            $baseUrl = "https://api.gpunexus.com/v1"
+            $defaultBaseUrl = "https://api.gpunexus.com/v1"
             $apiType = "openai-completions"
             $modelId = "MiniMax-M2.1"
             Write-ColorOutput "[INFO] 已选择模型: MiniMax-M2.1" "Green"
         }
         2 {
             $providerName = "GPUNexus"
-            $baseUrl = "https://coding.gpunexus.com"
+            $defaultBaseUrl = "https://coding.gpunexus.com"
             $apiType = "anthropic-messages"
             $modelId = "GPUNexus"
             Write-ColorOutput "[INFO] 已选择模型: GPUNexus" "Green"
@@ -167,11 +174,25 @@ function Main {
         default {
             Write-ColorOutput "[WARNING] 无效选择，使用默认: GPUNexus" "Yellow"
             $providerName = "GPUNexus"
-            $baseUrl = "https://coding.gpunexus.com"
+            $defaultBaseUrl = "https://coding.gpunexus.com"
             $apiType = "anthropic-messages"
             $modelId = "GPUNexus"
         }
     }
+
+    # 交互模式 - 获取 Base URL (仅当未通过命令行参数提供时)
+    if ([string]::IsNullOrEmpty($BaseUrl)) {
+        Write-Host ""
+        Write-ColorOutput "[INFO] 请输入 API Base URL (直接回车使用默认值: ${defaultBaseUrl})" "Blue"
+        $inputBaseUrl = Read-Host "Base URL"
+        if ([string]::IsNullOrEmpty($inputBaseUrl)) {
+            $BaseUrl = $defaultBaseUrl
+        } else {
+            $BaseUrl = $inputBaseUrl
+        }
+    }
+    $baseUrl = $BaseUrl
+    Write-ColorOutput "[INFO] 已设置 Base URL: ${baseUrl}" "Green"
 
     Write-Host ""
     Write-ColorOutput "============================================" "Blue"

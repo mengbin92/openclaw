@@ -35,6 +35,8 @@ NPM_REGISTRY="https://registry.npmmirror.com/"
 # 默认值
 DEFAULT_API_KEY=""
 DEFAULT_MODEL="GPUNexus"
+DEFAULT_BASE_URL="https://coding.gpunexus.com"
+DEFAULT_BASE_URL_ALT="https://api.gpunexus.com/v1"
 
 # 打印带颜色的消息
 print_info() {
@@ -319,6 +321,7 @@ install_openclaw() {
 create_config() {
     local api_key="$1"
     local model_choice="$2"
+    local custom_base_url="$3"
 
     print_info "正在更新配置文件..."
 
@@ -335,14 +338,14 @@ create_config() {
         1)
             # MiniMax-M2.1 (OpenAI兼容)
             provider_name="GPUNexus"
-            base_url="https://api.gpunexus.com/v1"
+            base_url="${custom_base_url}"
             api_type="openai-completions"
             model_id="MiniMax-M2.1"
             ;;
         2)
             # GPUNexus (Claude Code)
             provider_name="GPUNexus"
-            base_url="https://coding.gpunexus.com"
+            base_url="${custom_base_url}"
             api_type="anthropic-messages"
             model_id="GPUNexus"
             ;;
@@ -563,14 +566,16 @@ OpenClaw 一键部署脚本
 
 选项:
     -k, --api-key <key>     GPUNexus API Key
-    -m, --model <model>     选择模型: 1=MiniMax-M2.1, 2=GPUNexus (默认: 2)
-    -h, --help              显示帮助信息
+    -m, --model <model>      选择模型: 1=MiniMax-M2.1, 2=GPUNexus (默认: 2)
+    -b, --base-url <url>     API Base URL (可选)
+    -h, --help               显示帮助信息
 
 示例:
     $0 -k sk-xxxxxxxxxxxxx -m 1
     $0 --api-key sk-xxxxxxxxxxxxx
+    $0 -k sk-xxxxxxxxxxxxx -m 1 -b https://custom.api.com
 
-无参数运行时将进入交互模式
+无参数运行时将进入交互模式 (API Key 会隐藏输入)
 EOF
 }
 
@@ -578,6 +583,7 @@ EOF
 main() {
     local api_key=""
     local model_choice="2"
+    local custom_base_url=""
 
     # 解析命令行参数
     while [[ $# -gt 0 ]]; do
@@ -588,6 +594,10 @@ main() {
                 ;;
             -m|--model)
                 model_choice="$2"
+                shift 2
+                ;;
+            -b|--base-url)
+                custom_base_url="$2"
                 shift 2
                 ;;
             -h|--help)
@@ -613,12 +623,14 @@ main() {
     os=$(detect_os)
     print_info "检测到操作系统: $os"
 
-    # 交互模式 - 获取 API Key
+    # 交互模式 - 获取 API Key (隐藏输入)
     if [ -z "$api_key" ]; then
         echo ""
         print_info "请输入您的 GPUNexus API Key"
         print_info "获取方式: 访问 https://gpunexus.com 注册并创建 API Key"
-        read -p "API Key: " api_key
+        echo -n "API Key: "
+        read -s api_key
+        echo ""
     fi
 
     if [ -z "$api_key" ]; then
@@ -635,11 +647,30 @@ main() {
         read -p "请选择 [1/2]: " model_choice
     fi
 
+    # 设置默认 base_url 并检查是否需要交互式输入
+    local default_base_url=""
     case "$model_choice" in
-        1) print_info "已选择模型: MiniMax-M2.1" ;;
-        2) print_info "已选择模型: GPUNexus" ;;
-        *) print_error "无效选择，使用默认: GPUNexus"; model_choice="2" ;;
+        1)
+            print_info "已选择模型: MiniMax-M2.1"
+            default_base_url="${DEFAULT_BASE_URL_ALT}"
+            ;;
+        2)
+            print_info "已选择模型: GPUNexus"
+            default_base_url="${DEFAULT_BASE_URL}"
+            ;;
+        *) print_error "无效选择，使用默认: GPUNexus"; model_choice="2"; default_base_url="${DEFAULT_BASE_URL}" ;;
     esac
+
+    # 交互模式 - 获取 Base URL (仅当未通过命令行参数提供时)
+    if [ -z "$custom_base_url" ]; then
+        echo ""
+        print_info "请输入 API Base URL (直接回车使用默认值: ${default_base_url})"
+        read -p "Base URL: " custom_base_url
+        if [ -z "$custom_base_url" ]; then
+            custom_base_url="$default_base_url"
+        fi
+    fi
+    print_info "已设置 Base URL: ${custom_base_url}"
 
     echo ""
     echo "============================================"
@@ -671,7 +702,7 @@ main() {
     openclaw setup
 
     # 再修改配置文件
-    create_config "$api_key" "$model_choice"
+    create_config "$api_key" "$model_choice" "$custom_base_url"
 
     echo ""
     echo ">>> 步骤 4/4: 启动服务"
