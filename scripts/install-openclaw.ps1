@@ -133,6 +133,15 @@ function Main {
         $bstr = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
         $ApiKey = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($bstr)
         [System.Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+        # 显示确认信息
+        $keyLen = $ApiKey.Length
+        if ($keyLen -le 12) {
+            Write-ColorOutput "[INFO] 已接收 API Key: ***" "Blue"
+        } else {
+            $prefix = $ApiKey.Substring(0, 6)
+            $suffix = $ApiKey.Substring($keyLen - 6)
+            Write-ColorOutput "[INFO] 已接收 API Key: ${prefix}***${suffix}" "Blue"
+        }
     }
 
     if ([string]::IsNullOrEmpty($ApiKey)) {

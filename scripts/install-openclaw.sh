@@ -686,14 +686,35 @@ main() {
     os=$(detect_os)
     print_info "检测到操作系统: $os"
 
-    # 交互模式 - 获取 API Key (隐藏输入)
+    # 交互模式 - 获取 API Key (实时掩码显示)
     if [ -z "$api_key" ]; then
         echo ""
         print_info "请输入您的 GPUNexus API Key"
         print_info "获取方式: 访问 https://gpunexus.com 注册并创建 API Key"
         echo -n "API Key: "
-        read -s api_key
-        echo ""
+        api_key=""
+        local ch=""
+        while IFS= read -rsn1 ch; do
+            case "$ch" in
+                $'\x7f')  # Backspace
+                    if [ -n "$api_key" ]; then
+                        api_key="${api_key%?}"
+                        echo -n $'\b \b'
+                    fi
+                    ;;
+                $'\n'|$'\r')  # Enter
+                    echo ""
+                    break
+                    ;;
+                "")
+                    break
+                    ;;
+                *)
+                    api_key+="$ch"
+                    echo -n "*"
+                    ;;
+            esac
+        done
     fi
 
     if [ -z "$api_key" ]; then
